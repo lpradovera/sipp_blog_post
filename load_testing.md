@@ -65,7 +65,7 @@ First of all, ```sipp``` is usually run using ```sudo```, at least on OSX, becau
 
 ## Your first scenario
 
-SIPp comes with a number of built-in scenarios, but you will probably want to build your own
+SIPp comes with a number of [built-in scenarios](http://sipp.sourceforge.net/doc/reference.html#Integrated+scenarios), but you will probably want to build your own
 
 ## PCAP explained
 ## A more complex scenario
