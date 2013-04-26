@@ -22,6 +22,10 @@ From the SIPp documentation:
 
 > SIPp can be used to test many real SIP equipements like SIP proxies, B2BUAs, SIP media servers, SIP/x gateways, SIP PBX, ... It is also very useful to emulate thousands of user agents calling your SIP system.
 
+In short, SIPp can simulate one or more calls to your system in an automated fashion by leveraging SIP and RTP protocols, testing the SIP dialogs and generating statistics.
+
+It can run a specified number of concurrent calls, ramping up numbers, a
+
 ## Installing SIPp
 
 SIPp comes with a few compile-time options to enable various functionalities. For our purposes, we will be compiling SIPp from the stable download, using a patch to enable dynamic PCAP play (more on what that means later!).
@@ -41,9 +45,28 @@ make
 
 On OSX there are no prerequisites other than the usual build chain. On Linux, you might want to refer to your distribution's documentation, but libpcap and libncurses will be needed.
 
-Note that there is no ```make install``` step, you might want to
+Note that there is no ```make install``` step, you might want to copy or link the ```sipp``` executable to your preferred location.
+
+## The SIPp command line
+
+There are quite a few [command line options](http://sipp.sourceforge.net/doc/reference.html#Online+help+%28-h%29) available for SIPp. We will be explanining a sample command line to get acquainted with what SIPp can do for us.
+
+```
+sudo sipp -i 127.0.0.1 -p 8832 -sf load-test-1-simple.xml -l 5 -m 100 -r 2 -s 1 127.0.0.1
+```
+
+First of all, ```sipp``` is usually run using ```sudo```, at least on OSX, because it needs to bind to low ports.
+
+```-i``` specifies the local IP to bind to in case you have more than one. Always specify the IP to avoid difficult to diagnose issues. ```-p``` is the binding port.
+
+```-sf``` passes the scenario file to run, which is the XML file containing the steps for the call to be run. ```-l``` is the concurrent call limit, which means the calls that are running at the same time, and they will be added as the scenario progresses up to ```-m```, which is the total number of calls that will be run, at a rate per second of ```-r``` calls.
+
+```-s``` is the service part of the target SIP uri, such as 123 in ```123@host.com```. The host part is simply the main argument for the command.
 
 ## Your first scenario
+
+SIPp comes with a number of built-in scenarios, but you will probably want to build your own
+
 ## PCAP explained
 ## A more complex scenario
 ## SIPp statistics at a glance
