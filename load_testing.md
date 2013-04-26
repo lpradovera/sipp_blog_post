@@ -24,7 +24,7 @@ From the SIPp documentation:
 
 In short, SIPp can simulate one or more calls to your system in an automated fashion by leveraging SIP and RTP protocols, testing the SIP dialogs and generating statistics.
 
-It can run a specified number of concurrent calls, ramping up numbers, a
+It can run a specified number of concurrent calls, ramping up numbers, up to a maximum number of calls, and many other uses. SIPp is *not*, however, suited for functional testing as the action set is quite limited compared to what could be achieved with something like [ahn-loadbot](https://github.com/mojolingo/ahn-loadbot).
 
 ## Installing SIPp
 
@@ -59,16 +59,40 @@ First of all, ```sipp``` is usually run using ```sudo```, at least on OSX, becau
 
 ```-i``` specifies the local IP to bind to in case you have more than one. Always specify the IP to avoid difficult to diagnose issues. ```-p``` is the binding port.
 
-```-sf``` passes the scenario file to run, which is the XML file containing the steps for the call to be run. ```-l``` is the concurrent call limit, which means the calls that are running at the same time, and they will be added as the scenario progresses up to ```-m```, which is the total number of calls that will be run, at a rate per second of ```-r``` calls.
+```-sf``` passes the scenario file to run. ```-l``` is the concurrent call limit, which means the calls that are running at the same time, and they will be added as the scenario progresses up to ```-m```, which is the total number of calls that will be run, at a rate per second of ```-r``` calls.
 
 ```-s``` is the service part of the target SIP uri, such as 123 in ```123@host.com```. The host part is simply the main argument for the command.
 
-## Your first scenario
+## SIPp scenarios
 
-SIPp comes with a number of [built-in scenarios](http://sipp.sourceforge.net/doc/reference.html#Integrated+scenarios), but you will probably want to build your own
+A scenario is an XML file containing the steps for the call to be run. Steps mainly consist of ```<send>```ing SIP packets, setting a ```<recv>``` expectation on the counterpart sending a specified SIP command, plus some other tags that can be used to execute actions and to pause the scenario.
+
+The scenario will then be run sequentially, and SIPp will display the various steps, number of successful completions and failures for each, plus some other information. It is important to note that SIPp will consider anything that is not exactly happening as specified as an error.
+
+SIPp comes with a number of [built-in scenarios](http://sipp.sourceforge.net/doc/reference.html#Integrated+scenarios), but you will probably want to [build your own](http://sipp.sourceforge.net/doc/reference.html#xmlsyntax).
+
+To start looking at a scenario, a good way is to use the ```-sd``` option to dump a built-in scenario, either to console or to a file. For example ```sipp -sd uac_pcap >> integrated_uac_pcap_scenario.xml``` will write out the client scenario with PCAP, which is the common starting point for most usage we will be exploring in this post. The result for that command can be seen [here](https://github.com/polysics/sipp_blog_post/blob/master/scenarios/integrated_uac_pcap_scenario.xml).
+
+The scenario starts with an INVITE expecting an optional 100 TRYING and/or 180 RINGING, followed by a mandatory 200 OK. After ACKing the response, the scenario plays some PCAP file, then pauses for the duration of the recording. This is necessary because playback is a sort of an "async" action here, and execution would continue before the RTP replay is done. We then see the scenario send a DTMF digit, some more pausing, and a BYE signaling the end of the call. A final 200 OK is expected in response to the BYE.
+
+As you can see, this scenario could easily be used to test an IVR. I have copied the relevant PCAP files to the [blog post repository](https://github.com/polysics/sipp_blog_post).
+
+You might be asking yourself now, what is a PCAP file? Why cannot you just use your own .wav files?
 
 ## PCAP explained
+
+SIPp does not understand audio in the way some other more high-level software does. It only speaks two protocols: SIP and RTP. The only way to have SIPp send audio is thus to replay a recorded packet capture of an RTP stream. That entails a series of difficulties, both at the capture and at the playback stage.
+
+To record an RTP PCAP stream, the recommended tool is [Wireshark](http://www.wireshark.org/). Run a capture during a SIP call, generating the needed audio on one of the call sides. Then, using ```ip.src == SRC_IP_ADDRESS and ip.dst == DST_IP_ADDRESS and rtp```, isolate the packets you want to save. Using File/Save and the Displayed filter, you can then create your .pcap file.
+
+Playback of PCAP files has to adhere to the RTP protocol rules. Since your packets have a Sequence and a Timestamp, they will only be accepted the first time they are played in a scenario, then silently discarded. The patch mentioned above in the installation steps gets around this by rewriting the Sequence number and updating the Timestamp for packets before they are sent.
+
+SIPp bundles a variety of PCAP files in the ```pcap/``` directory in the source, some of which I have put in the repository ```scenarios/pcap``` folder.
+
 ## A more complex scenario
+
+To explain things further, I will be building a sample Adhearsion application I will then be load testing using SIPp.
+
 ## SIPp statistics at a glance
 ## What to look for when doing load testing
 ## Other tools
