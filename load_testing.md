@@ -59,7 +59,7 @@ First of all, ```sipp``` is usually run using ```sudo```, at least on OSX, becau
 
 ```-i``` specifies the local IP to bind to in case you have more than one. Always specify the IP to avoid difficult to diagnose issues. ```-p``` is the binding port.
 
-```-sf``` passes the scenario file to run. ```-l``` is the concurrent call limit, which means the calls that are running at the same time, and they will be added as the scenario progresses up to ```-m```, which is the total number of calls that will be run, at a rate per second of ```-r``` calls.
+```-sf``` passes the scenario file to run. ```-l``` is the concurrent call limit, which means the calls that are running at the same time (Concurrent Calls - CC), and they will be added as the scenario progresses up to ```-m```, which is the total number of calls that will be run, at a rate per second of ```-r``` calls (Calls Per Second - CPS).
 
 ```-s``` is the service part of the target SIP uri, such as 123 in ```123@host.com```. The host part is simply the main argument for the command.
 
@@ -83,7 +83,9 @@ You might be asking yourself now, what is a PCAP file? Why cannot you just use y
 
 SIPp does not understand audio in the way some other more high-level software does. It only speaks two protocols: SIP and RTP. The only way to have SIPp send audio is thus to replay a recorded packet capture of an RTP stream. That entails a series of difficulties, both at the capture and at the playback stage.
 
-To record an RTP PCAP stream, the recommended tool is [Wireshark](http://www.wireshark.org/). Run a capture during a SIP call, generating the needed audio on one of the call sides. Then, using ```ip.src == SRC_IP_ADDRESS and ip.dst == DST_IP_ADDRESS and rtp```, isolate the packets you want to save. Using File/Save and the Displayed filter, you can then create your .pcap file.
+The recommended tool for network traffic capture and analysis is [Wireshark](http://www.wireshark.org/). It is a invaluable application to use for any and all SIP and telephony diagnosis situations, so a good degree of familiarity with it is essential.
+
+To obtain a RTP PCAP, run a Wireshark capture during a SIP call, generating the needed audio on one of the call legs, usually the source side. Then, using ```ip.src == SRC_IP_ADDRESS and ip.dst == DST_IP_ADDRESS and rtp```, isolate the packets you want to save. Using File/Save and the Displayed filter, you can then create your .pcap file.
 
 Playback of PCAP files has to adhere to the RTP protocol rules. Since your packets have a Sequence and a Timestamp, they will only be accepted the first time they are played in a scenario, then silently discarded. The patch mentioned above in the installation steps gets around this by rewriting the Sequence number and updating the Timestamp for packets before they are sent.
 
@@ -111,7 +113,44 @@ Your first step in developing your own scenario is thus testing it over and over
 
 ## SIPp statistics
 
-If you try running the above scenario with ```sudo sipp -i 192.168.10.1 -p 8832 -sf ahn_app_scenario.xml -l 5 -m 50 -r 2 -s 111 192.168.10.11 -trace_stat -fd 2``` you will notice a new ```.csv``` file appears in the working directory. That file contains the statistics collected during the test, with the ```-trace_stat``` option enabling them and ```-fd``` setting an interval in seconds between writes. I have 
+If you try running the above scenario with ```sudo sipp -i 192.168.10.1 -p 8832 -sf ahn_app_scenario.xml -l 5 -m 50 -r 2 -s 111 192.168.10.11 -trace_stat -fd 2``` you will notice a new ```.csv``` file appears in the working directory. That file contains the statistics collected during the test, with the ```-trace_stat``` option enabling them and ```-fd``` setting an interval in seconds between writes. I have left a sample run in the repository for your convenience.
 
-## What to look for when doing load testing
+SIPp collects a large number of [statistics](http://sipp.sourceforge.net/doc/reference.html#Available+counters) that are dumped to the file. Columns marked with (P) represent the instantaneous reading at ```t``` for that metric, while those marked with (C) represent a cumulative or average reading and are usually more representative of results.
+
+The main metrics you want to turn your attention to are call duration, response times and of course failed calls, if you tuned your SIPp scenario to avoid false failures.
+
+Call duration should be consistent with what you are expecting from the scenario and application. If calls are too brief or too long your application is probably failing silently while honoring the SIP dialogue specified by SIPp.
+
+Response times, defined as the time the application takes to "pick up the phone", are a good indicator of a telephony system's level of load, as most application exhibit a linear correlation between Call Per Second (CPS), concurrent calls and increased reaction times.
+
+For example, after running the above scenario (2 CPS, 5 CC, 50 total) on a purposefully resource limited VM to get meaningful results, I obtained the following graph:
+
+[<img src="https://raw.github.com/polysics/sipp_blog_post/master/scenarios/response_time_graph.png" width="800">](https://raw.github.com/polysics/sipp_blog_post/master/scenarios/response_time_graph.png)
+
+Aside from the tail of the graph being skewed by calls not being started any more, you can notice a consistent trend in raising response times. When the same scenario is run with a larger maximum number of calls, the response times reach a very slow increasing trend which almost looks like a plateau. That, in this case, indicates we are close to the potential maximum load for the machine.
+
+## Caveats and recommendations
+
+The above metrics are very important in gauging your application's reaction to load, but must be compounded by thorough analysis of the server logs to spot anomalies and odd events.
+
+SIPp has a few [recommendations](http://sipp.sourceforge.net/doc/reference.html#Performance+testing+with+SIPp) for tuning your load generating system, which should always be separate from the tested application server for obvious reasons.
+
+Every telephony platform has a set of standard recommendations for performance you might want to get familiar with. Platform themselves usually have very good throughput out of the box if given enough resources, so the first tuning step usually lies in the application layer, whether Adhearsion or anything else.
+
 ## Other tools
+
+Aside from SIPp and Wireshark, I have found a variety of other tools helpful in designing and running load tests.
+
+[Callflow](http://callflow.sourceforge.net/) is a graphical SIP call flow generation tool. It allows you to visualize the SIP dialogue happening during the call in SVG format, by feeding it a tcpdump/Wireshark capture. It can be very helpful in diagnosing SIPp failed calls.
+
+[PJSUA](http://www.pjsip.org/pjsua.htm) is a command-line, scriptable SIP client. Aside from being a full featured CLI softphone, it can be used in automated fashion to answer calls and play audio, thus providing a counterpart in case your load testing scenario involves dialing out to peers.
+
+[ahn-loadbot](https://github.com/mojolingo/ahn-loadbot) is an Adhearsion 1 application that drives an Asterisk instance to execute test scenarios, and can be an useful alternative to SIPp for functional testing. The higher complexity ahn-loadbot presents make it less well suited for load testing unless it is run on a very powerful machine.
+
+## Conclusions
+
+SIPp does not look very user friendly at first glance, and in fact it is not. But in the hands of a skilled person, it becomes an invaluable tool for testing a variety of situations, and especially load testing in a controlled and meaningful way.
+
+It is thus an irreplaceable tool in the arsenal of a VoIP developer or sysadmin, and together with Wireshark/tcpdump can often be the only way to diagnose difficult issues.
+
+All code for the post can be found [here](https://github.com/polysics/sipp_blog_post) for your reference.
