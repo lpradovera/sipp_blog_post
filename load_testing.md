@@ -113,7 +113,7 @@ Your first step in developing your own scenario is thus testing it over and over
 
 ## SIPp statistics
 
-If you try running the above scenario with ```sudo sipp -i 192.168.10.1 -p 8832 -sf ahn_app_scenario.xml -l 5 -m 50 -r 2 -s 111 192.168.10.11 -trace_stat -fd 2``` you will notice a new ```.csv``` file appears in the working directory. That file contains the statistics collected during the test, with the ```-trace_stat``` option enabling them and ```-fd``` setting an interval in seconds between writes. I have left a sample run in the repository for your convenience.
+If you try running the above scenario with ```sudo sipp -i 192.168.10.1 -p 8832 -sf ahn_app_scenario.xml -l 5 -m 50 -r 2 -s 111 192.168.10.11 -trace_stat -fd 2``` you will notice a new ```.csv``` file appears in the working directory. That file contains the statistics collected during the test, with the ```-trace_stat``` option enabling them and ```-fd``` setting an interval in seconds between writes. I have left a [sample run](https://raw.github.com/polysics/sipp_blog_post/master/scenarios/ahn_app_scenario_40778_.csv) in the repository for your convenience.
 
 SIPp collects a large number of [statistics](http://sipp.sourceforge.net/doc/reference.html#Available+counters) that are dumped to the file. Columns marked with (P) represent the instantaneous reading at ```t``` for that metric, while those marked with (C) represent a cumulative or average reading and are usually more representative of results.
 
