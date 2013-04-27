@@ -5,6 +5,7 @@ class LoadTestingController < Adhearsion::CallController
     answer
     result = ask "hello-world", limit: 1
     logger.info "RESULT WAS #{result}"
+    sleep 1
     hangup
   end
 end

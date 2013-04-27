@@ -91,8 +91,27 @@ SIPp bundles a variety of PCAP files in the ```pcap/``` directory in the source,
 
 ## A more complex scenario
 
-To explain things further, I will be building a sample Adhearsion application I will then be load testing using SIPp.
+To explain things further, I will be building a sample Adhearsion application I will then be load testing using SIPp. You can find the app in the ```ahn_app```folder in the repository.
+It is a very simple app that plays a sample Asterisk file, then asks for input and logs the result.
+The corresponding [scenario file](https://github.com/polysics/sipp_blog_post/blob/master/scenarios/ahn_app_scenario.xml) is very similar to the one we generated earlier. I only removed the first PCAP play and shortened the initial pause.
 
-## SIPp statistics at a glance
+To run a scenario against Asterisk without using authentication, which is not at all easy to do with SIPp and not in scope for this post, you will want your ```sip.conf``` to contain ```allowguest=yes```, using this only for testing as it allows your Asterisk server to accept calls from non-authenticated parties, and ```allow=alaw``` to allow the codec we are using in the scenario. You will also need your default context sending calls to Adhearsion in ```extensions.conf```.
+
+After setting up and running the Adhearsion application ```cd scenarios``` then ```sudo sipp -i 192.168.10.1 -p 8832 -sf ahn_app_scenario.xml -l 1 -m 1 -r 1 -s 111 192.168.10.11```. If everything works. you can then start raising limits and seeing how high you can go before your box starts having issues.
+
+## Interpreting SIPp results
+
+SIPp is a very strict testing tool, and as such it only accepts call flows that are exactly as specified. For example, if you have a pause in your scenario, nothing should be received from the far side during that. The above scenario thus often results in false failed calls because the BYE comes in before the paus is done, unless you sleep for 1 second after logging output.
+
+In this case we decided to act on the application since we had access, but you might want to tweak the scenario instead.
+
+The same principle goes for *any* SIP packet or interaction. SIPp is not a "call simulator" like a developer would think at a glance, and a scenario is not the same thing as simply picking up a softphone and dialing an extension, pressing DTMF as you go.
+
+Your first step in developing your own scenario is thus testing it over and over to make sure you do not have any fake failures. That said, if your *only* goal is load testing and you have access to the server side, you can some times just run the load tests anyway and spot issues from the logs. That is not, however, a recommended approach as your statistics will report many false positive failures.
+
+## SIPp statistics
+
+If you try running the above scenario with ```sudo sipp -i 192.168.10.1 -p 8832 -sf ahn_app_scenario.xml -l 5 -m 50 -r 2 -s 111 192.168.10.11 -trace_stat -fd 2``` you will notice a new ```.csv``` file appears in the working directory. That file contains the statistics collected during the test, with the ```-trace_stat``` option enabling them and ```-fd``` setting an interval in seconds between writes. I have 
+
 ## What to look for when doing load testing
 ## Other tools
