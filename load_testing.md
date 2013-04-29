@@ -8,13 +8,21 @@ But what about the platform as a whole?
 
 Telephony involves a larger number of moving parts compared to a web application, often requiring more server-side resources per user in addition to the usual persistence and logic layers. That complexity creates a series of scaling challenges, where a single machine often serves a number of concurrent calls that is in the low hundreds.
 
-Since a telephony platform such as FreeSWITCH could be installed on any kind of machine from a P4 to a 32-core virtualized setup, it is necessary for a voice application nearing the production stage to generate concrete statistics about resource needs and usage.
+Since a telephony platform such as FreeSWITCH could be installed on any kind of machine from a P4 to a 32-core virtualized setup, it is necessary for a voice application to generate concrete statistics about resource needs and usage. Goals for concurrent call numbers should be set from the start of development and acted upon according to quantitative analysis and results.
 
-You do not want to find out that your new business idea is so successful your platform melts under pressure!
+You do not want to find out that your new business idea is so successful your platform melts under pressure, or that your profitability relies on pushing 1000 concurrent calls while your machines can only withstand 100!
 
-## SIPp
+## Tools of the trade
 
-Enter [SIPp](http://sipp.sourceforge.net/), the testing tool of choice. SIPp can be used not only for load testing, which will be our primary focus, but also to exercise a SIP implementation for compliance and compatibility purposes.
+We will need to choose one or more tools to assist us in gathering the essential data we need. There is enough choice both in open source and commercial software to guarantee a brief analysis before we choose.
+
+[SIPr](http://sipper.agnity.com/) or Sipper is an open source Ruby SIP stack that enables the creation, execution and verification of call flow scenario. Aside from being last updated in 2009, it is more suited to integration tests than load generation due to the relatively high complexity of a project.
+
+[Empirix Hammer](http://www.empirix.com/solutions/products-services/hammer-test.aspx) is a commercial testing suite available both as on-premises software and SaaS. It has many interesting features including comprehensive call analysis, statistics and enormous load generation capabilities, but is not freely available.
+
+Enter [SIPp](http://sipp.sourceforge.net/), an open source command line utility that originated at HP and is freely available on a variety of operating systems.
+
+SIPp can be used not only for load testing, which will be our primary focus, but also to exercise a SIP implementation for compliance and compatibility purposes.
 
 From the SIPp documentation:
 
@@ -24,11 +32,11 @@ From the SIPp documentation:
 
 In short, SIPp can simulate one or more calls to your system in an automated fashion by leveraging SIP and RTP protocols, testing the SIP dialogs and generating statistics.
 
-It can run a specified number of concurrent calls, ramping up numbers, up to a maximum number of calls, and many other uses. SIPp is *not*, however, suited for functional testing as the action set is quite limited compared to what could be achieved with something like [ahn-loadbot](https://github.com/mojolingo/ahn-loadbot).
+It can run a specified number of concurrent calls, ramping up numbers, up to a maximum number of calls, and many other uses. SIPp is *not*, however, suited for integration testing as the action set is quite limited compared to what could be achieved with something like [ahn-loadbot](https://github.com/mojolingo/ahn-loadbot), which can handle simple cases, or [NuEcho NuBot](http://nubot.nuecho.com/), a dedicated IVR testing platform.
 
 ## Installing SIPp
 
-SIPp comes with a few compile-time options to enable various functionalities. For our purposes, we will be compiling SIPp from the stable download, using a patch to enable dynamic PCAP play (more on what that means later!).
+SIPp comes with a few compile-time options to enable various functionalities. For our purposes, we will be compiling SIPp from the stable download, using a patch to enable dynamic PCAP play. The patch is necessary to allow us to play each PCAP audio capture file we have more than once in the same call, due to how the RTP protocol works. That reduces the need for having many different capture files recorded as they can be reused.
 
 The [installation instructions](http://sipp.sourceforge.net/doc/reference.html#Stable+release) are pretty straightforward. but we will be adding a patch originated on [this mailing list post](http://permalink.gmane.org/gmane.comp.telephony.sipp.user/5751). Unfortunately the patch is no longer available but I have built a small repository for it [here](https://github.com/polysics/sipp_dynamic_pcapp_play).
 
@@ -71,7 +79,7 @@ The scenario will then be run sequentially, and SIPp will display the various st
 
 SIPp comes with a number of [built-in scenarios](http://sipp.sourceforge.net/doc/reference.html#Integrated+scenarios), but you will probably want to [build your own](http://sipp.sourceforge.net/doc/reference.html#xmlsyntax).
 
-To start looking at a scenario, a good way is to use the ```-sd``` option to dump a built-in scenario, either to console or to a file. For example ```sipp -sd uac_pcap >> integrated_uac_pcap_scenario.xml``` will write out the client scenario with PCAP, which is the common starting point for most usage we will be exploring in this post. The result for that command can be seen [here](https://github.com/polysics/sipp_blog_post/blob/master/scenarios/integrated_uac_pcap_scenario.xml).
+A good way to get started is to use the ```-sd``` option to dump one of the built-in scenarios, either to console or to a file. For example ```sipp -sd uac_pcap >> integrated_uac_pcap_scenario.xml``` will write out the client scenario with PCAP, which is the common starting point for most usage we will be exploring in this post. The result for that command can be seen [here](https://github.com/polysics/sipp_blog_post/blob/master/scenarios/integrated_uac_pcap_scenario.xml).
 
 The scenario starts with an INVITE expecting an optional 100 TRYING and/or 180 RINGING, followed by a mandatory 200 OK. After ACKing the response, the scenario plays some PCAP file, then pauses for the duration of the recording. This is necessary because playback is a sort of an "async" action here, and execution would continue before the RTP replay is done. We then see the scenario send a DTMF digit, some more pausing, and a BYE signaling the end of the call. A final 200 OK is expected in response to the BYE.
 
@@ -89,6 +97,8 @@ To obtain a RTP PCAP, run a Wireshark capture during a SIP call, generating the 
 
 Playback of PCAP files has to adhere to the RTP protocol rules. Since your packets have a Sequence and a Timestamp, they will only be accepted the first time they are played in a scenario, then silently discarded. The patch mentioned above in the installation steps gets around this by rewriting the Sequence number and updating the Timestamp for packets before they are sent.
 
+[wav2rtp](http://wav2rtp.sourceforge.net/) is a tool that can generate PCAP files from some audio formats (currently G.711u, GSM 06.10 FR and Speex) with the ability to emulate network delay and losses. It is distributed in source form and can easily be compiled on the major platforms.
+
 SIPp bundles a variety of PCAP files in the ```pcap/``` directory in the source, some of which I have put in the repository ```scenarios/pcap``` folder.
 
 ## A more complex scenario
@@ -99,17 +109,15 @@ The corresponding [scenario file](https://github.com/polysics/sipp_blog_post/blo
 
 To run a scenario against Asterisk without using authentication, which is not at all easy to do with SIPp and not in scope for this post, you will want your ```sip.conf``` to contain ```allowguest=yes```, using this only for testing as it allows your Asterisk server to accept calls from non-authenticated parties, and ```allow=alaw``` to allow the codec we are using in the scenario. You will also need your default context sending calls to Adhearsion in ```extensions.conf```.
 
-After setting up and running the Adhearsion application ```cd scenarios``` then ```sudo sipp -i 192.168.10.1 -p 8832 -sf ahn_app_scenario.xml -l 1 -m 1 -r 1 -s 111 192.168.10.11```. If everything works. you can then start raising limits and seeing how high you can go before your box starts having issues.
+After setting up and running the Adhearsion application ```cd scenarios``` then ```sudo sipp -i 192.168.10.1 -p 8832 -sf ahn_app_scenario.xml -l 1 -m 1 -r 1 -s 111 192.168.10.11```. If everything works. you can then start raising limits and seeing how high you can go before your box starts having issues, such as call durations that are below or above the expected time.
 
 ## Interpreting SIPp results
 
-SIPp is a very strict testing tool, and as such it only accepts call flows that are exactly as specified. For example, if you have a pause in your scenario, nothing should be received from the far side during that. The above scenario thus often results in false failed calls because the BYE comes in before the paus is done, unless you sleep for 1 second after logging output.
+SIPp is a very strict testing tool, and as such it only accepts call flows that are exactly as specified. For example, if you have a pause in your scenario, SIPp interprets that as "no SIP interaction should happen during this time at all" and will report a failed call if any SIP packet is received during the pause.
 
-In this case we decided to act on the application since we had access, but you might want to tweak the scenario instead.
+The same principle goes for *any* SIP packet or interaction. SIPp is not a "call simulator" like a developer would think at a glance, and a scenario is not the same thing as simply picking up a softphone and dialing an extension, pressing DTMF as you go. Every single SIP dialogue will have to be accounted for, RTP set up has to happen in your scenario packets, and in general the SIP call flow must strictly adhere to the scenario.
 
-The same principle goes for *any* SIP packet or interaction. SIPp is not a "call simulator" like a developer would think at a glance, and a scenario is not the same thing as simply picking up a softphone and dialing an extension, pressing DTMF as you go.
-
-Your first step in developing your own scenario is thus testing it over and over to make sure you do not have any fake failures. That said, if your *only* goal is load testing and you have access to the server side, you can some times just run the load tests anyway and spot issues from the logs. That is not, however, a recommended approach as your statistics will report many false positive failures.
+Your first step in developing your own scenario is thus testing it over and over to make sure you do not have any fake failures. That said, if your *only* goal is load testing and you have access to the server side, you can some times just run the load tests anyway and spot issues from the logs. That is not, however, a recommended approach as your statistics will report many failed calls that are not "real" failures and thus lose some of their usefulness.
 
 ## SIPp statistics
 
@@ -131,9 +139,15 @@ Aside from the tail of the graph being skewed by calls not being started any mor
 
 ## Caveats and recommendations
 
-The above metrics are very important in gauging your application's reaction to load, but must be compounded by thorough analysis of the server logs to spot anomalies and odd events.
+The above metrics are very important in gauging your application's reaction to load, but must be complemented by thorough analysis of the server logs to spot anomalies and odd events.
 
-SIPp has a few [recommendations](http://sipp.sourceforge.net/doc/reference.html#Performance+testing+with+SIPp) for tuning your load generating system, which should always be separate from the tested application server for obvious reasons.
+CPU and memory usage as reported by the server can be matched to the SIPp statistics to gauge general load and per-call resource needs.
+
+Your application should if possible be instrumented to provide performance reports at the testing stage, and the general application logs will show exceptions and correct call flow completion during the load test.
+
+It is also recommended to do some recorded test runs to make sure the application and scenario are operating correctly, especially regarding media. A recording can reveal QoS issues introduced by call volume and make sure that the call flow is being followed correctly.
+
+SIPp has a few [recommendations](http://sipp.sourceforge.net/doc/reference.html#Performance+testing+with+SIPp) for tuning your load generating system, which should always be separate from the tested application to avoid mistaking bad performance on the machine running SIPp for legitimate issues with your server.
 
 Every telephony platform has a set of standard recommendations for performance you might want to get familiar with. Platform themselves usually have very good throughput out of the box if given enough resources, so the first tuning step usually lies in the application layer, whether Adhearsion or anything else.
 
@@ -145,7 +159,7 @@ Aside from SIPp and Wireshark, I have found a variety of other tools helpful in 
 
 [PJSUA](http://www.pjsip.org/pjsua.htm) is a command-line, scriptable SIP client. Aside from being a full featured CLI softphone, it can be used in automated fashion to answer calls and play audio, thus providing a counterpart in case your load testing scenario involves dialing out to peers.
 
-[ahn-loadbot](https://github.com/mojolingo/ahn-loadbot) is an Adhearsion 1 application that drives an Asterisk instance to execute test scenarios, and can be an useful alternative to SIPp for functional testing. The higher complexity ahn-loadbot presents make it less well suited for load testing unless it is run on a very powerful machine.
+[ahn-loadbot](https://github.com/mojolingo/ahn-loadbot) is an Adhearsion 1 application that drives an Asterisk instance to execute test scenarios, and can be an useful alternative to SIPp for integration testing. The higher complexity ahn-loadbot presents make it less well suited for load testing unless it is run on a very powerful machine.
 
 ## Conclusions
 
