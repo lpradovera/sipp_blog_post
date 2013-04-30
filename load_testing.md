@@ -63,7 +63,7 @@ There are quite a few [command line options](http://sipp.sourceforge.net/doc/ref
 sudo sipp -i 127.0.0.1 -p 8832 -sf load-test-1-simple.xml -l 5 -m 100 -r 2 -s 1 127.0.0.1
 ```
 
-First of all, ```sipp``` is usually run using ```sudo```, at least on OSX, because it needs to bind to low ports.
+First of all, ```sipp``` is usually run using ```sudo```, at least on OSX, because it needs privileged access to interfaces to read and write raw packets.
 
 ```-i``` specifies the local IP to bind to in case you have more than one. Always specify the IP to avoid difficult to diagnose issues. ```-p``` is the binding port.
 
