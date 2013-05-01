@@ -10,7 +10,7 @@ Telephony involves a larger number of moving parts compared to a web application
 
 Since a telephony platform such as FreeSWITCH could be installed on any kind of machine from a P4 to a 32-core virtualized setup, it is necessary for a voice application to generate concrete statistics about resource needs and usage. Goals for concurrent call numbers should be set from the start of development and acted upon according to quantitative analysis and results.
 
-You do not want to find out that your new business idea is so successful your platform melts under pressure, or that your profitability relies on pushing 1000 concurrent calls while your machines can only withstand 100!
+You do not want to find out that your new business idea is so successful your platform melts under pressure, or that your profitability relies on pushing 100 concurrent calls while your machines can only withstand 10!
 
 ## Tools of the trade
 
@@ -18,7 +18,7 @@ We will need to choose one or more tools to assist us in gathering the essential
 
 [SIPr](http://sipper.agnity.com/) or Sipper is an open source Ruby SIP stack that enables the creation, execution and verification of call flow scenario. Aside from being last updated in 2009, it is more suited to integration tests than load generation due to the relatively high complexity of a project.
 
-[Empirix Hammer](http://www.empirix.com/solutions/products-services/hammer-test.aspx) is a commercial testing suite available both as on-premises software and SaaS. It has many interesting features including comprehensive call analysis, statistics and enormous load generation capabilities, but is not freely available.
+[Empirix Hammer](http://www.empirix.com/solutions/products-services/hammer-test.aspx) is a commercial testing suite available both as on-premises software and SaaS. It has many interesting features including comprehensive call analysis, statistics and enormous load generation capabilities, but is not free to use and the prices are not mentioned on its website.
 
 Enter [SIPp](http://sipp.sourceforge.net/), an open source command line utility that originated at HP and is freely available on a variety of operating systems.
 
